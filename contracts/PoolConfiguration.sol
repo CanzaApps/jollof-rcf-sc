@@ -45,4 +45,5 @@ contract PoolConfiguration is IPoolConfiguration, Ownable, Pausable {
     function getUpfrontFee() external view returns (uint256) {
         return upfrontFee;
     }
+
 }
