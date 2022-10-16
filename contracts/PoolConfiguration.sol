@@ -11,19 +11,22 @@ contract PoolConfiguration is IPoolConfiguration, Ownable, Pausable {
     uint256 commitmentAmountUsdValue;
     uint256 durationOfCommitmentAgreementInDays;
     uint256 upfrontFee;
+    uint256 penaltyRate;
 
     constructor(
         uint256 _interestRate,
         uint256 _commitmentFee,
         uint256 _commitmentAmountUsdValue,
         uint256 _durationOfCommitmentAgreementInDays,
-        uint256 _upfrontFee
+        uint256 _upfrontFee,
+        uint256 _penaltyRate
     ) {
         interestRate = _interestRate;
         commitmentFee = _commitmentFee;
         commitmentAmountUsdValue = _commitmentAmountUsdValue;
-        durationOfCommitmentAgreementInDays = _durationOfCommitmentAgreementInDays;
+        durationOfCommitmentAgreementInDays = _durationOfCommitmentAgreementInDays * 1 days; //converts to seconds
         upfrontFee = _upfrontFee;
+        penaltyRate = _penaltyRate;
     }
 
     function getInterestRate() external view returns (uint256) {
@@ -45,4 +48,9 @@ contract PoolConfiguration is IPoolConfiguration, Ownable, Pausable {
     function getUpfrontFee() external view returns (uint256) {
         return upfrontFee;
     }
+
+    function getPenaltyRate() external view returns (uint256) {
+        return penaltyRate;
+    }
+
 }
