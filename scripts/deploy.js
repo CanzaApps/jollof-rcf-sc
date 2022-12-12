@@ -4,28 +4,48 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
-const hre = require("hardhat");
+const hre = require('hardhat')
+const poolConfigData = require('../config/pool_config_data.json')
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  const [deployer] = await ethers.getSigners()
+  console.log('Deploying contracts with the account:', deployer.address)
+  console.log('Account balance:', (await deployer.getBalance()).toString())
 
-  const lockedAmount = hre.ethers.utils.parseEther("1");
+  //Deploy pool configuration
+  const PoolConfig = await ethers.getContractFactory('PoolConfiguration')
+  const config = poolConfigData['USDT']
+  const poolConfig = await PoolConfig.deploy(
+    config.interestRate,
+    config.commitmentFee,
+    config.commitmentAmountUsdValue,
+    config.durationOfCommitmentAgreementInDays,
+    config.upfrontFee,
+    config.penaltyRate,
+    config.protocolFee
+  )
+  console.log("pool config contract", poolConfig.address);
 
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
 
-  await lock.deployed();
+  //Deploy mock token
+  const MockToken = await ethers.getContractFactory('BUSDToken');
+  const tokenContract = await MockToken.deploy();
+  console.log("token address", tokenContract.address)
 
-  console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+  //Deploy pool
+  const Pool = await ethers.getContractFactory('Pool')
+  const poolContract = await Pool.deploy()
+  console.log("pool contract", poolContract.address);
+  await poolContract.initPool(tokenContract.address,poolConfig.address)
+
+  //mint token
+  //const mint = await tokenContract.methods.mint(deployer.address, "100000000000000000000000").send({ from: address })
+ 
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
 main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+  console.error(error)
+  process.exitCode = 1
+})
