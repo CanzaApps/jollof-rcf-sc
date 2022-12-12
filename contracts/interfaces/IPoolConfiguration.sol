@@ -7,4 +7,5 @@ interface IPoolConfiguration {
     function getCommitmentAmountUsdValue() external view returns (uint256);
     function getDurationOfCommitmentAgreementInDays() external view returns (uint256);
     function getUpfrontFee() external view returns (uint256);
+    function getPenaltyRate() external view returns (uint256);
 }
