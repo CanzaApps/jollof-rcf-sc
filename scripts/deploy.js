@@ -24,22 +24,25 @@ async function main() {
     config.penaltyRate,
     config.protocolFee
   )
-  console.log("pool config contract", poolConfig.address);
 
 
   //Deploy mock token
   const MockToken = await ethers.getContractFactory('BUSDToken');
   const tokenContract = await MockToken.deploy();
-  console.log("token address", tokenContract.address)
+
 
   //Deploy pool
   const Pool = await ethers.getContractFactory('Pool')
   const poolContract = await Pool.deploy()
-  console.log("pool contract", poolContract.address);
+
   await poolContract.initPool(tokenContract.address,poolConfig.address)
 
   //mint token
-  //const mint = await tokenContract.methods.mint(deployer.address, "100000000000000000000000").send({ from: address })
+  const mint = await tokenContract.mint(deployer.address, "100000000000000000000000")
+
+  console.log("token address", tokenContract.address)
+  console.log("pool contract", poolContract.address);
+  console.log("pool config contract", poolConfig.address);
  
 }
 
