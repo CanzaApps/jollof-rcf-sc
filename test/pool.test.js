@@ -47,12 +47,8 @@ describe('Pool Contarct', function () {
      expect(poolConfig.status).to.equal(1)
   })
   
-  function deposit() {
-
-  }
-
-  it('[PASS It should deposit', async ()=> {
-    const [owner, user] = await ethers.getSigners();
+  async function deposit(amount, user) {
+    const [owner] = await ethers.getSigners();
     const balance = await busdContract.balanceOf(owner.address)
     console.log("owner balance", balance)
     await busdContract.connect(owner).approve(owner.address, ethers.utils.parseUnits('1000000', 'ether'))
@@ -60,9 +56,24 @@ describe('Pool Contarct', function () {
     const balance2 = await busdContract.balanceOf(user.address)
     console.log("balance", balance2)
     await busdContract.connect(user).approve(poolContractAddress, ethers.utils.parseUnits('1000000', 'ether'))
-    await poolContract.connect(user).deposit(busdContract.address, ethers.utils.parseUnits('100', 'ether'));
-    //Expects the user balance to be zero (0)
+    await poolContract.connect(user).deposit(busdContract.address, ethers.utils.parseUnits(amount, 'ether'));
+  }
+
+  it('[PASS] It should deposit', async ()=> {
+    const [_, user] = await ethers.getSigners();
+    const amount = "100"
+    await deposit(amount, user)
+    //Expects user balance to zero(0) after depositing
     const balanceAfter = await busdContract.balanceOf(user.address);
     expect(balanceAfter).to.equal(0);
+    const poolConfig = await poolContract.poolConfigs(busdContract.address)
+    //Checks totalDeposit in the pool config  equals total amount deposited
+    expect(poolConfig.totalDeposit).to.equal(ethers.utils.parseUnits(amount, 'ether'))
+    const contractBalance = await busdContract.balanceOf(poolContract.address);
+    expect(contractBalance).to.equal(ethers.utils.parseUnits(amount, 'ether'))
+  })
+
+  if('[PASS] it should borrow', async ()=> {
+    
   })
 })
