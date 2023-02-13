@@ -86,6 +86,7 @@ contract Pool is Ownable, Pausable {
     }
 
     mapping(address => mapping(address => Investment)) public stakes;
+    //maps user's address => token's address => debt
     mapping(address => mapping(address => Debt)) public debts;
     mapping(address =>  Withdraw[]) public withdraws;
     mapping(address => RepayDebt[]) public repayDebt;
