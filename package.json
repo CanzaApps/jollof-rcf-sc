@@ -9,6 +9,7 @@
     "hardhat": "^2.10.2"
   },
   "dependencies": {
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@openzeppelin/contracts": "^4.7.3"
   }
 }

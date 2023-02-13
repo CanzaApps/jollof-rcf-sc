@@ -1,6 +1,7 @@
 const { expect } = require('chai')
 const { ethers } = require('hardhat')
 const poolConfigData = require('../config/pool_config_data.json')
+const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 let poolConfigFactory
 let poolConfigContract
@@ -73,7 +74,79 @@ describe('Pool Contarct', function () {
     expect(contractBalance).to.equal(ethers.utils.parseUnits(amount, 'ether'))
   })
 
-  if('[PASS] it should borrow', async ()=> {
+  it('[PASS] it should borrow', async ()=> {
+    const [_, user, user2] = await ethers.getSigners();
+    const amount = "100"
+    await deposit(amount, user);
+
+    const userBalanceBefore = await busdContract.balanceOf(user.address);
     
+    await poolContract.connect(user2).borrow(busdContract.address, ethers.utils.parseUnits(amount, 'ether'));
+
+    const user2Balance = await busdContract.balanceOf(user2.address);
+    //Excepts user2 balance to be 100
+    expect(user2Balance).to.equal(ethers.utils.parseUnits(amount, 'ether'))
+
+    const commitmentFee = await poolConfigContract.getCommitmentFee();
+    const upFrontFee = ethers.utils.formatEther(commitmentFee) * +amount
+    const debts = await poolContract.debts(user2.address, busdContractAddress)
+    const amountBorrowed = debts.amountBorrowed;
+    const debtAccrued = debts.debtAccrued;
+    console.log("amount borrowed", amountBorrowed);
+    console.log("upfront fee", upFrontFee)
+    console.log("debt accrued", ethers.utils.formatEther(debtAccrued))
+   // console.log("Poolconfig", debts);
   })
+
+  it('[PASS] gets debt accrued', async() => {
+    const [_, user1, user2] = await ethers.getSigners();
+    const amount = "100"
+    await deposit(amount, user1);
+    await poolContract.connect(user2).borrow(busdContract.address, ethers.utils.parseUnits(amount, 'ether'));
+
+
+    const userDebtAccrued = await poolContract.getUserDebtAccrued(busdContractAddress, user2.address);
+    // console.log("user debt", ethers.utils.formatEther(userDebtAccrued));
+    // await time.increase(3600);
+    // const userDebtAccrued2 = await poolContract.getUserDebtAccrued(busdContractAddress, user2.address);
+    // console.log("After 1 day", ethers.utils.formatEther(userDebtAccrued2));
+   
+  })
+
+  it('[PASS] repay debt', async () => {
+    const [_, user1, user2] = await ethers.getSigners();
+    const amount = "100.0"
+    await deposit(amount, user1);
+    await poolContract.connect(user2).borrow(busdContract.address, ethers.utils.parseUnits(amount, 'ether'));
+
+    //check balance before repaying debt
+    const balanceBefore = await busdContract.balanceOf(user2.address);
+    console.log("balance before,", ethers.utils.formatEther(balanceBefore));
+
+    //Approve token
+    await busdContract.connect(user2).approve(poolContractAddress, ethers.utils.parseUnits('1000000', 'ether'))
+
+    expect(ethers.utils.formatEther(balanceBefore)).to.equal(amount)
+
+    //Repy debt
+    await poolContract.connect(user2).repay(busdContractAddress, ethers.utils.parseUnits(amount, 'ether'));
+
+    //Check balance after
+    const balanceAfter = await busdContract.balanceOf(user2.address);
+    console.log("balance after", ethers.utils.formatEther(balanceAfter))
+
+    const debts = await poolContract.debts(user2.address, busdContractAddress);
+    const debtAccrued = debts.debtAccrued
+    console.log("debt accrued", debts.debtAccrued)
+    console.log("debts", ethers.utils.formatEther(debtAccrued));
+
+    //log repay debt
+    const debtRepaid = await poolContract.repayDebt(user2.address, 0);
+    console.log("repaid debts", debtRepaid)
+
+    expect(ethers.utils.formatEther(balanceAfter)).to.equal('0.0')
+
+
+  })
+
 })
