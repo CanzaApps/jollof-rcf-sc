@@ -15,6 +15,8 @@ contract Pool is Ownable, Pausable {
     }
 
     ERC20[] public tokenList;
+
+    //events
     event PoolInitialized(address tokenAddress, address configAddress);
 
     event UpdateConfig(address configAddress, uint256 updatedTime);
@@ -25,6 +27,7 @@ contract Pool is Ownable, Pausable {
 
     event Repay(address token, address repayer, uint256 amount);
 
+
     struct PoolConfig {
         ERC20 tokenAddress;
         IPoolConfiguration poolConfig;
@@ -32,9 +35,18 @@ contract Pool is Ownable, Pausable {
         PoolStatus status;
         uint256 lastUpdateTimestamp;
         uint256 totalDeposit;
+        uint256 totalInterestPaid;
+        uint256 totalCommitmentFeePaid;
+        uint256 totalWithdraw;
     }
+    
     mapping(address => PoolConfig) public poolConfigs;
+
+
     bool private reentrancyLock = false;
+    uint256 timeDivisor;
+
+
     modifier nonReentrant() {
         require(!reentrancyLock);
         reentrancyLock = true;
@@ -54,13 +66,43 @@ contract Pool is Ownable, Pausable {
         uint256 borrowedTimestamp;
     }
 
+    struct Withdraw {
+        uint256 amount;
+        uint256 lastUpdateTimestamp;
+        address poolToken;
+        address userAddress;
+    }
+
+    struct RepayDebt {
+        uint256 amount;
+        address poolToken;
+        uint256 repayTimestamp;
+    }
+
+    struct InterestPaid {
+        uint256 amount;
+        address userAddress;
+        uint256 timestamp;
+    }
+
     mapping(address => mapping(address => Investment)) public stakes;
+    //maps user's address => token's address => debt
     mapping(address => mapping(address => Debt)) public debts;
+    mapping(address =>  Withdraw[]) public withdraws;
+    mapping(address => RepayDebt[]) public repayDebt;
+
+    //map interest paid to ERC20 token
+    mapping(address => InterestPaid[]) public interestPaid;
 
     // modifier updatePoolWithInterestSAndTimestamp(ERC20 _token) {
     //     PoolConfig storage poolConfig = poolConfigs[address(_token)];
     // }
 
+ constructor(
+        uint256 _timeDivisor
+    ) {
+        timeDivisor = _timeDivisor;
+    }
 
     /**
      * @dev initialize the  pool. only owner can initialize the pool.
@@ -77,6 +119,9 @@ contract Pool is Ownable, Pausable {
             0,
             PoolStatus.ACTIVE,
             block.timestamp,
+            0,
+            0,
+            0,
             0
         );
         poolConfigs[address(_token)] = poolConfig;
@@ -150,12 +195,12 @@ contract Pool is Ownable, Pausable {
 
   function calculateUserInterest(ERC20 _token, uint256 debt, uint256 period) internal view returns (uint256) {
       PoolConfig memory pool = poolConfigs[address(_token)];
-      return (pool.poolConfig.getInterestRate() * debt * period) / (15 * 1e18); 
+      return (pool.poolConfig.getInterestRate() * debt * period) / (timeDivisor * 1e18); 
   }
 
   function calculateUserPenaltyInterestRate(ERC20 _token, uint256 debt, uint256 period) internal view returns (uint256) {
       PoolConfig memory pool = poolConfigs[address(_token)];
-      return ((pool.poolConfig.getInterestRate() * (1 + pool.poolConfig.getPenaltyRate())) * debt * period) / (15 * 1e18 * 1e18); 
+      return ((pool.poolConfig.getInterestRate() * (1 + pool.poolConfig.getPenaltyRate())) * debt * period) / (timeDivisor * 1e18 * 1e18); 
   }
 
   function min(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -167,9 +212,10 @@ contract Pool is Ownable, Pausable {
         uint256 commitmentAmount,
         uint256 commitmentFee,
         uint256 interestRate,
-        uint256 period
+        uint256 period,
+        uint256 _timeDivisor
     ) internal pure returns (uint256) {
-        return (min(undawnBalance, commitmentAmount) * commitmentFee * interestRate * period) / (15 * 1e18 * 1e18);
+        return (min(undawnBalance, commitmentAmount) * commitmentFee * interestRate * period) / (_timeDivisor * 1e18 * 1e18);
     }
 
     function getUndrawnBalance(ERC20 _token) internal view returns (uint256){
@@ -187,23 +233,23 @@ contract Pool is Ownable, Pausable {
 
   function repay(ERC20 _token, uint256 _amount) external nonReentrant {
       Debt storage debt  = debts[msg.sender][address(_token)];
-      PoolConfig memory pool = poolConfigs[address(_token)];
-      uint256 period = block.timestamp - debt.borrowedTimestamp;
-      bool isPenalty;
-      if(debt.borrowedTimestamp + 14 days > block.timestamp){
-         isPenalty = true;
-      }else{
-         isPenalty = false;
-      }
-      uint256 commitmentFee = calculateCommitmentFee(getUndrawnBalance(_token), pool.poolConfig.getCommitmentAmountUsdValue(), pool.poolConfig.getCommitmentFee(), pool.poolConfig.getInterestRate(), period);
-      console.log("period", period);
+      PoolConfig storage pool = poolConfigs[address(_token)];
+      uint256 period = block.timestamp - debt.lastUpdateTimestamp;
+      bool isPenalty = checkIsPenalty(debt.borrowedTimestamp);
+      uint256 commitmentFee = calculateCommitmentFee(getUndrawnBalance(_token), pool.poolConfig.getCommitmentAmountUsdValue(), pool.poolConfig.getCommitmentFee(), pool.poolConfig.getInterestRate(), period, timeDivisor);
       uint256 interestAccrued = calculateInterestAccrued(_token, debt.debtAccrued, period, isPenalty);
-      console.log(interestAccrued);
-          console.log(commitmentFee);
       uint256 payback = debt.debtAccrued + interestAccrued + commitmentFee;
-      console.log("debt", debt.debtAccrued);
-      debt.debtAccrued = payback - _amount;
+      //if a user pays more than the debt, set debt to zero
+      if((payback - _amount) <= 0){
+          debt.debtAccrued  = 0;
+      }else{
+          debt.debtAccrued = payback - _amount;
+      }
       debt.lastUpdateTimestamp = block.timestamp;
+      pool.totalInterestPaid += interestAccrued;
+      pool.totalCommitmentFeePaid += commitmentFee;
+      RepayDebt memory repay_ = RepayDebt(_amount, address(_token), block.timestamp);
+      repayDebt[msg.sender].push(repay_);
        _token.transferFrom(msg.sender, address(this), _amount);
        emit Repay(address(_token), msg.sender, _amount);
   }
@@ -218,14 +264,72 @@ contract Pool is Ownable, Pausable {
       return interestAccrued;
   }
 
-  function getUserDebtAccrued(ERC20 _token) external view returns(uint256) {
-     Debt storage debt  = debts[msg.sender][address(_token)];
+  function getUserDebtAccrued(ERC20 _token, address userAddress) external view returns(uint256) {
+     Debt storage debt  = debts[userAddress][address(_token)];
+     if(debt.debtAccrued == 0){
+         return 0;
+     }
     PoolConfig memory pool = poolConfigs[address(_token)];
     bool isPenalty = checkIsPenalty(debt.borrowedTimestamp);
-    uint256 period = block.timestamp - debt.borrowedTimestamp;
-    uint256 commitmentFee = calculateCommitmentFee(getUndrawnBalance(_token), pool.poolConfig.getCommitmentAmountUsdValue(), pool.poolConfig.getCommitmentFee(), pool.poolConfig.getInterestRate(), period);
+    uint256 period = block.timestamp - debt.lastUpdateTimestamp;
+    uint256 commitmentFee = calculateCommitmentFee(getUndrawnBalance(_token), pool.poolConfig.getCommitmentAmountUsdValue(), pool.poolConfig.getCommitmentFee(), pool.poolConfig.getInterestRate(), period, timeDivisor);
     uint256 interestAccrued = calculateInterestAccrued(_token, debt.debtAccrued, period, isPenalty);
+    console.log("debt", debt.debtAccrued);
+    console.log("interest", interestAccrued);
+    console.log("commitment", commitmentFee);
     return debt.debtAccrued + interestAccrued + commitmentFee;
   }
+
+
+  function withdraw(ERC20 _token, uint256 _amount) external nonReentrant {
+      PoolConfig storage pool = poolConfigs[address(_token)];
+      Investment storage investment = stakes[msg.sender][address(_token)];
+     require(_amount <= calculateUserAvailableAmountForWithdrawal_(_token, msg.sender), "You have exceeded the amount you can withdraw");
+     Withdraw memory withdraw_ = Withdraw(_amount, block.timestamp, address(_token), msg.sender);
+     withdraws[msg.sender].push(withdraw_);
+     pool.totalWithdraw +=  _amount;
+     pool.totalDeposit -= _amount;
+     investment.amount -= _amount;
+     _token.transfer(msg.sender, _amount);
+
+  }
+
+  function getUserTotalDeposit(ERC20 _token, address userAddress) external view returns(uint256) {
+    return getUserTotalDeposit_(_token, userAddress);
+  }
+
+  function getUserTotalDeposit_(ERC20 _token, address userAddress) internal view returns(uint256) {
+    Investment memory investment = stakes[userAddress][address(_token)];
+    return investment.amount;
+  }
+
+  function calculateUserAvailableAmountForWithdrawal(ERC20 _token, address userAddress) external view returns(uint256) {
+      return calculateUserAvailableAmountForWithdrawal_(_token, userAddress);
+  }
+
+  function calculateUserAvailableAmountForWithdrawal_(ERC20 _token, address userAddress) internal view returns(uint256) {
+      PoolConfig memory pool = poolConfigs[address(_token)];
+       uint userDeposit = getUserTotalDeposit_(_token, userAddress);
+     uint256 locked =  (userDeposit * 1e18) / getTotalDeposit(_token);
+     console.log("userDeposit", userDeposit);
+     console.log("getTotalDeposit", getTotalDeposit(_token));
+     console.log("locked", locked);
+     uint256 lockedAmount = (locked * pool.poolConfig.getCommitmentAmountUsdValue())/1e18;
+     console.log("lockedAmount", lockedAmount);
+     if(userDeposit <= lockedAmount){
+         return 0;
+     }
+     return userDeposit - lockedAmount;
+  }
+
+  function getTotalDeposit(ERC20 _token) internal view returns (uint256) {
+      PoolConfig memory pool = poolConfigs[address(_token)];
+      return pool.totalDeposit;
+  }
+
+  function updateTimeDivisor(uint256 value) external {
+      timeDivisor = value;
+  }
+
 
 }

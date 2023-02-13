@@ -1,10 +1,13 @@
 {
-      "interestRate": "750000000000000000",
-      "commitmentFee": "750000000000000000",
-      "commitmentAmountUsdValue": "750000000000000000",
-      "durationOfCommitmentAgreementInDays": "750000000000000000",
-      "upfrontFee": "750000000000000000"
-    
+      "USDT": {
+            "interestRate": "100000000000000000",
+            "commitmentFee": "40000000000000000",
+            "commitmentAmountUsdValue": "1000000000000000000000",
+            "durationOfCommitmentAgreementInDays": "4",
+            "upfrontFee": "5000000000000000",
+            "penaltyRate": "1000000000000000000",
+            "protocolFee": "250000000000000000"
+      }    
 }
 
   
