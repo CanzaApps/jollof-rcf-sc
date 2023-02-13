@@ -6,7 +6,7 @@
  const fs = require('fs')
  //const privateKey = fs.readFileSync('.secrete').toString()
  const RINKEBY_RPC_URL = "https://rinkeby.infura.io/v3/b4074d04e5e947208fa8b8b601ee57bf";
-const PRIVATE_KEY = "52d7d8932de723a5625bf814aedb256054c22a604cab61dae465b24ddb8b35a6";
+const PRIVATE_KEY = "";
 const ALFAJORES_URL = "https://alfajores-forno.celo-testnet.org"
 module.exports = {
   networks:{
