@@ -14,6 +14,7 @@ contract PoolConfiguration is IPoolConfiguration, Ownable, Pausable {
     uint256 penaltyRate;
     uint256 protocolFee;
 
+
     constructor(
         uint256 _interestRate,
         uint256 _commitmentFee,
