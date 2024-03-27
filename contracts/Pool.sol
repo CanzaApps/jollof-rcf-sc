@@ -405,6 +405,7 @@ contract Pool is Ownable, Pausable {
       }else{
          interestAccrued = calculateUserInterest(_token, _debt, period);
       }
+      
       return interestAccrued;
   }
 
