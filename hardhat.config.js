@@ -17,7 +17,7 @@ require("@nomiclabs/hardhat-waffle");
  const fs = require('fs')
  //const privateKey = fs.readFileSync('.secrete').toString()
  const RINKEBY_RPC_URL = "https://rinkeby.infura.io/v3/b4074d04e5e947208fa8b8b601ee57bf";
-const PRIVATE_KEY = "4cacfec187b1b89b13e888784697c86de3cdb2c79b318777e92ebcfea52bef43";
+const PRIVATE_KEY = "";
 const ALFAJORES_URL = "https://alfajores-forno.celo-testnet.org"
 module.exports = {
   networks:{

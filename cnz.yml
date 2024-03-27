@@ -1,0 +1,20 @@
+contract: baki-contract
+frameworkVersion: '1'
+hardhatConfig:
+  networks:
+    network1:
+      name: goerli
+      chain: 43111
+      env: dev
+    network2:
+      name: fuji
+      chain: 221
+      env: prod
+
+Profile:
+  active: dev
+
+
+
+
+
