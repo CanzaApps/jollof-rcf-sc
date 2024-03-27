@@ -38,7 +38,7 @@ async function main() {
   await poolContract.initPool(tokenContract.address,poolConfig.address)
 
   //mint token
-  const mint = await tokenContract.mint(deployer.address, "100000000000000000000000")
+  const mint = await tokenContract.mint(deployer.address, "10000000000000000000000000000")
 
   console.log("token address", tokenContract.address)
   console.log("pool contract", poolContract.address);

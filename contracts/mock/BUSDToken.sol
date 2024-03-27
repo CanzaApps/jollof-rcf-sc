@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract BUSDToken is ERC20("Binance Coin", "BUSD") {
+contract BUSDToken is ERC20("USDT Coin", "USDT") {
   uint constant _initial_supply = 100 * (10**18);
   constructor() public {
      _mint(msg.sender, _initial_supply);
