@@ -1,8 +1,8 @@
 {
       "USDT": {
-            "interestRate": "100000000000000000",
-            "commitmentFee": "40000000000000000",
-            "commitmentAmountUsdValue": "1000000000000000000000",
+            "interestRate": "50000000000000000",
+            "commitmentFee": "400000000000000000",
+            "commitmentAmountUsdValue": "10000000000000000000000",
             "durationOfCommitmentAgreementInDays": "4",
             "upfrontFee": "5000000000000000",
             "penaltyRate": "1000000000000000000",
